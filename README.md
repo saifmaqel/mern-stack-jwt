@@ -5,7 +5,7 @@ It supports **JWT authentication** for secure access and **rate limiting** to pr
 
 ---
 
-## 🛠 Tech Stack
+##  Tech Stack
 
 **Frontend**
 - React + Vite + TypeScript
@@ -19,7 +19,7 @@ It supports **JWT authentication** for secure access and **rate limiting** to pr
 
 ---
 
-## ⚙️ Installation
+##  Installation
 
 Clone the repo:
 
