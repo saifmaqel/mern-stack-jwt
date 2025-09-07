@@ -1,0 +1,404 @@
+import { useLocalStorage } from "@mantine/hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import axios from "axios";
+// Import types for better type checking and clarity
+import { AppUser, ResponseObject, TokenResponse } from "../apis/types";
+import { AuthContext } from "./use-context-auth";
+
+export type LoginState =
+  | "logged-out"
+  | "initializing"
+  | "in-progress"
+  | "logged-in"
+  | "not-authorized"
+  | "session-expired"
+  | "error"
+  | "session-expired-warning";
+
+export type AppRoles =
+  | "app.superuser"
+  | "cables.read"
+  | "cables.create"
+  | "cables.update"
+  | "cables.delete"
+  | "cables.status.undercorrection"
+  | "cables.convert.toaccess"
+  | "rn.read"
+  | "rn.create"
+  | "rn.update"
+  | "rn.delete"
+  | "admin.sitecat.read"
+  | "admin.sitecat.create"
+  | "admin.sitecat.update"
+  | "admin.sitecat.delete"
+  | "admin.equipmentcat.read"
+  | "admin.equipmentcat.create"
+  | "admin.equipmentcat.update"
+  | "admin.equipmentcat.delete"
+  | "admin.attributeconfig.read"
+  | "admin.attributeconfig.create"
+  | "admin.attributeconfig.update"
+  | "admin.attributeconfig.delete"
+  | "admin.wsconfig.read"
+  | "admin.wsconfig.create"
+  | "admin.wsconfig.update"
+  | "admin.wsconfig.delete"
+  | "admin.refsystemconfig.read"
+  | "admin.refsystemconfig.create"
+  | "admin.refsystemconfig.update"
+  | "admin.refsystemconfig.delete"
+  | "admin.dbconfig.read"
+  | "admin.dbconfig.create"
+  | "admin.dbconfig.update"
+  | "admin.dbconfig.delete"
+  | "admin.usersmgmt.read"
+  | "admin.usersmgmt.create"
+  | "admin.usersmgmt.update"
+  | "admin.usersmgmt.delete"
+  | "admin.groupsmgmt.read"
+  | "admin.groupsmgmt.create"
+  | "admin.groupsmgmt.update"
+  | "admin.groupsmgmt.delete"
+  | "admin.bulktrace.read"
+  | "admin.bulktrace.create"
+  | "admin.bulktrace.delete"
+  | "admin.appconfig.read"
+  | "admin.appconfig.update"
+  | "reports.generate"
+  | "admin.accessdata.importcables";
+
+export interface AuthContextValues {
+  user: AppUser | null;
+  setUser: (user: AppUser | null) => void;
+  loginState: LoginState;
+  errorMessage: string | null;
+  signin: (username: string, password: string, rememberMe: boolean) => void;
+  signout: (newState?: LoginState) => void;
+  setLoginState: (state: LoginState) => void;
+  hasPrivilege: (privilege: AppRoles) => boolean;
+  hasAtLeastOnePrivilege: (privileges: AppRoles[]) => boolean;
+  hasAdminAccess: () => boolean;
+}
+
+// const readPrivilege = 1;
+// const editDeletePrivilege = 2;
+
+const tokenStorageKey = "frvsession";
+const refreshTokenStorageKey = "frvrefreshsession";
+const expiryStorageKey = "frvexpiry";
+
+async function generateToken(
+  username: string,
+  password: string,
+  rememberMe: boolean
+): Promise<TokenResponse> {
+  const url = `auth/generate-token`;
+  const body = { username, password, rememberMe };
+  const fetched = await axios.post(url, body);
+  const result = fetched.data as ResponseObject;
+  return result as TokenResponse;
+}
+
+async function logout(token: string) {
+  const url = `auth/logout`;
+  try {
+    await axios.post(url, null, {
+      headers: { Authorization: "Bearer " + token },
+    });
+  } catch (err) {
+    console.log("LG-Error", err);
+  }
+}
+
+async function refreshTokenFunc(
+  token: string,
+  refreshToken: string
+): Promise<TokenResponse> {
+  const url = `auth/refresh-token`;
+  const body = { token, refreshToken };
+
+  //set to true to avoid double refresh tokens in development (strict mode)
+  refreshInPregress = true;
+
+  const fetched = await axios.post(url, body);
+
+  refreshInPregress = false;
+  const result = fetched.data as TokenResponse;
+
+  return result;
+}
+
+let tokenRefreshTimeoutHandle: ReturnType<typeof setTimeout>;
+let refreshInPregress: boolean = false;
+
+export const AuthContextProvider = (props: { children?: React.ReactNode }) => {
+  const auth = useProviderAuth();
+  return (
+    <AuthContext.Provider value={auth}>{props.children}</AuthContext.Provider>
+  );
+};
+
+function useProviderAuth(): AuthContextValues {
+  const [token, setToken, delToken] = useLocalStorage<string | null>({
+    key: tokenStorageKey,
+    defaultValue: null,
+    getInitialValueInEffect: false,
+  });
+  const [refreshToken, setRefreshToken, delRefreshToken] = useLocalStorage<
+    string | null
+  >({
+    key: refreshTokenStorageKey,
+    defaultValue: null,
+    getInitialValueInEffect: false,
+  });
+  const [expiry, setExpiry, delExpiry] = useLocalStorage<number | null>({
+    key: expiryStorageKey,
+    defaultValue: null,
+    getInitialValueInEffect: false,
+  });
+
+  const queryClient = useQueryClient();
+
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [loginState, setLoginState] = useState<LoginState>("initializing");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const signout = useCallback(
+    async (newState?: LoginState) => {
+      const copyToken = token;
+
+      delToken();
+      delRefreshToken();
+      delExpiry();
+      clearTimeout(tokenRefreshTimeoutHandle);
+      setUser(null);
+      setLoginState(newState ?? "logged-out");
+      delete axios.defaults.headers.common.Authorization;
+      queryClient.clear();
+
+      if (copyToken) await logout(copyToken);
+    },
+    [token, delToken, delRefreshToken, delExpiry, queryClient]
+  );
+
+  const registerLogin = useCallback(
+    (
+      regToken: string,
+      regExpiry: number,
+      username: string,
+      fullName: string,
+      email: string,
+      regRefreshToken: string,
+      privileges: AppRoles[]
+    ) => {
+      const delay = regExpiry - new Date().getTime();
+
+      if (delay <= 0) {
+        delToken();
+        delRefreshToken();
+        delExpiry();
+        clearTimeout(tokenRefreshTimeoutHandle);
+        setUser(null);
+        setLoginState("session-expired");
+        return;
+      }
+
+      setToken(regToken);
+      setExpiry(regExpiry);
+      setRefreshToken(regRefreshToken);
+      axios.defaults.headers.common.Authorization = "Bearer " + regToken;
+
+      const authUser: AppUser = {
+        username,
+        displayName: fullName,
+        token: regToken,
+        expiryDate: new Date(regExpiry).toISOString(),
+        email,
+        refreshToken: regRefreshToken,
+        privileges,
+      };
+
+      setUser(authUser);
+      setLoginState("logged-in");
+      setErrorMessage(null);
+    },
+    [delExpiry, delRefreshToken, delToken, setExpiry, setRefreshToken, setToken]
+  );
+
+  const refreshUserToken = useCallback(() => {
+    if (!token || !refreshToken) {
+      setLoginState("logged-out");
+      return;
+    }
+
+    refreshTokenFunc(token, refreshToken)
+      .then((response) => {
+        if (response.httpStatusOk && response.result) {
+          const tokenResponse = response.result;
+
+          const expiryDate = new Date(tokenResponse.expiryDate).getTime();
+          registerLogin(
+            tokenResponse.token,
+            expiryDate,
+            tokenResponse.username,
+            tokenResponse.displayName,
+            tokenResponse.email,
+            tokenResponse.refreshToken,
+            tokenResponse.privileges
+          );
+        } else {
+          delRefreshToken();
+          setLoginState("session-expired");
+          setErrorMessage(response.error?.message ?? null);
+        }
+      })
+      .catch((err) => {
+        setLoginState("error");
+        delRefreshToken();
+        delToken();
+        setErrorMessage(
+          err.message === "Failed to fetch"
+            ? "Unable to reach backend server"
+            : err.message
+        );
+      });
+  }, [delRefreshToken, delToken, refreshToken, registerLogin, token]);
+
+  const signin = useCallback(
+    (username: string, password: string, rememberMe: boolean) => {
+      setLoginState("in-progress");
+      generateToken(username, password, rememberMe)
+        .then((response) => {
+          if (response.httpStatusOk && response.result) {
+            const tokenResponse = response.result;
+
+            const expiryDate = new Date(tokenResponse.expiryDate).getTime();
+            registerLogin(
+              tokenResponse.token,
+              expiryDate,
+              tokenResponse.username,
+              tokenResponse.displayName,
+              tokenResponse.email,
+              tokenResponse.refreshToken,
+              tokenResponse.privileges
+            );
+          } else if (response.httpStatus === 401) {
+            setLoginState("not-authorized");
+            setErrorMessage(response.error?.message ?? "Not Authorized");
+          } else {
+            setLoginState("error");
+            setErrorMessage(response.error?.message ?? null);
+          }
+        })
+        .catch((err) => {
+          setLoginState("error");
+          setErrorMessage(
+            err.message === "Failed to fetch"
+              ? "Unable to reach backend server"
+              : err.message
+          );
+        });
+    },
+    [registerLogin]
+  );
+
+  const hasPrivilege = useCallback(
+    (privilege: AppRoles) => {
+      if (user === null) return false;
+
+      if (user.privileges.includes(privilege)) return true;
+      else return false;
+    },
+    [user]
+  );
+
+  const hasAtLeastOnePrivilege = useCallback(
+    (privileges: AppRoles[]) => {
+      if (user === null) return false;
+
+      for (const privilege of privileges) {
+        if (user.privileges.includes(privilege)) return true;
+      }
+      return false;
+    },
+    [user]
+  );
+
+  const hasAdminAccess = useCallback(() => {
+    if (user === null) return false;
+    return user.privileges.some((p) => p.startsWith("admin."));
+  }, [user]);
+
+  useEffect(() => {
+    if (loginState !== "initializing") return;
+
+    if (!token || !expiry) {
+      setLoginState("logged-out");
+      setErrorMessage(null);
+    } else {
+      //when checking for refresh token. if it doesn't work i set it to null to avoind further checks
+      if (!refreshToken) {
+        const expiredTime = expiry - new Date().getTime();
+        if (expiredTime < 0) {
+          //if more than 2 days consider them logged out
+          if (Math.abs(expiredTime) > 1000 * 60 * 60 * 24 * 2) {
+            setLoginState("logged-out");
+            setErrorMessage(null);
+          } else {
+            setLoginState("session-expired");
+            setErrorMessage("Session expired");
+          }
+        }
+      } else {
+        setLoginState("in-progress");
+        //check if the refresh token can be renewed
+        if (!refreshInPregress) refreshUserToken();
+      }
+    }
+  }, [expiry, loginState, refreshToken, refreshUserToken, token]);
+
+  useEffect(() => {
+    if (loginState !== "logged-in") return;
+    if (!expiry) return;
+
+    //10 seconds before expiry
+    const interval = expiry! - new Date().getTime() - 10000;
+
+    //due to circular dependency will have to put this here to call it as an effect
+    tokenRefreshTimeoutHandle = setTimeout(() => {
+      refreshUserToken();
+      clearTimeout(tokenRefreshTimeoutHandle);
+    }, interval);
+
+    return () => clearTimeout(tokenRefreshTimeoutHandle);
+  }, [expiry, loginState, refreshUserToken]);
+
+  const retVal = useMemo(
+    () => ({
+      user,
+      setUser,
+      signin,
+      signout,
+      setLoginState,
+      loginState,
+      errorMessage,
+      hasPrivilege,
+      hasAtLeastOnePrivilege,
+      hasAdminAccess,
+    }),
+    [
+      user,
+      setUser,
+      signin,
+      signout,
+      loginState,
+      errorMessage,
+      hasPrivilege,
+      hasAtLeastOnePrivilege,
+      hasAdminAccess,
+    ]
+  );
+
+  return retVal;
+}

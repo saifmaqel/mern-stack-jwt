@@ -8,10 +8,12 @@ import {
 } from "../../utils/constants";
 import type { GetAllWorkoutsResponse } from "../../apis/types";
 import type { AxiosError } from "axios";
+import { useAuth } from "../../hooks/useAuth";
 
 const AddEditWorkoutForm = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { state } = useAuth();
   const queryClient = useQueryClient();
 
   const isEditPage = Boolean(id);
@@ -19,10 +21,13 @@ const AddEditWorkoutForm = () => {
   const { data, isLoading } = useQuery({
     queryKey: [WORKOUT_QUERY_KEY, id],
     queryFn: async () => {
-      const data = await workoutsApi.get(id!);
+      if (!state.user?.token) {
+        return Promise.reject(new Error("Missing auth token"));
+      }
+      const data = await workoutsApi.get(id!, state.user.token);
       return data;
     },
-    enabled: isEditPage,
+    enabled: isEditPage && Boolean(state.user?.token),
   });
 
   const [name, setName] = useState("");
@@ -48,8 +53,11 @@ const AddEditWorkoutForm = () => {
       load: number;
       reps: number;
     }) => {
-      if (isEditPage) return workoutsApi.update(id!, workout);
-      else return workoutsApi.create(workout);
+      if (!state.user?.token) {
+        return Promise.reject(new Error("Missing auth token"));
+      }
+      if (isEditPage) return workoutsApi.update(id!, workout, state.user.token);
+      else return workoutsApi.create(workout, state.user.token);
     },
     onSuccess: (response) => {
       if (!response.httpStatusOk) {
@@ -106,7 +114,7 @@ const AddEditWorkoutForm = () => {
   return (
     <div className="form-page">
       <form className="create" onSubmit={handleSubmit}>
-        <h3>{isEditPage ? "Edit a Existing Workout" : "Add a New Workout"}</h3>
+        <h3>{isEditPage ? "Edit an Existing Workout" : "Add a New Workout"}</h3>
 
         <label>Excersize Name</label>
         <input

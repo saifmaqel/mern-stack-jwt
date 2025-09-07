@@ -1,12 +1,13 @@
-export function validateFields(fields, requiredFields) {
-  const missingFields = [];
-
-  for (const field of requiredFields) {
-    const value = fields[field];
-    if (!value || (typeof value === "string" && value.trim() === "")) {
-      missingFields.push(field);
-    }
-  }
+export function validateFields(fields) {
+  const missingFields = Object.entries(fields)
+    .filter(([_, value]) => {
+      return (
+        value === undefined ||
+        value === null ||
+        (typeof value === "string" && value.trim() === "")
+      );
+    })
+    .map(([key]) => key);
 
   if (missingFields.length === 0) return null;
 

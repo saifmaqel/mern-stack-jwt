@@ -2,9 +2,10 @@ import mongoose from "mongoose";
 import { Workout } from "../models/workoutModel.js";
 import { validateFields } from "../utils/utils.js";
 
-export async function getAllWorkouts(_, res) {
+export async function getAllWorkouts(req, res) {
   try {
-    const workouts = await Workout.find().sort({ createdAt: -1 });
+    const user_id = req.user._id;
+    const workouts = await Workout.find({ user_id }).sort({ createdAt: -1 });
     res.status(200).json({ message: "all workouts", workouts });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -30,12 +31,12 @@ export async function getWorkout(req, res) {
 export async function createWorkout(req, res) {
   try {
     const { name, reps, load } = req.body;
-    const errorMessage = validateFields(req.body, ["name", "reps", "load"]);
+    const errorMessage = validateFields(req.body);
     if (errorMessage) {
       return res.status(400).json({ error: errorMessage });
     }
-
-    const createdWorkout = await Workout.create({ name, reps, load });
+    const user_id = req.user._id;
+    const createdWorkout = await Workout.create({ name, reps, load, user_id });
     res.status(200).json({
       message: "Workout created successfully",
       workout: createdWorkout,
@@ -52,7 +53,7 @@ export async function updateWorkout(req, res) {
       return res.status(404).json({ error: "Not Found" });
     }
     const { name, reps, load } = req.body;
-    const errorMessage = validateFields(req.body, ["name", "reps", "load"]);
+    const errorMessage = validateFields(req.body);
     if (errorMessage) {
       return res.status(400).json({ error: errorMessage });
     }
@@ -83,12 +84,10 @@ export async function deleteWorkout(req, res) {
     if (!deletedWorkout) {
       return res.status(404).json({ error: "Not Found" });
     }
-    res
-      .status(200)
-      .json({
-        message: "Workout deleted successfully",
-        workout: deletedWorkout,
-      });
+    res.status(200).json({
+      message: "Workout deleted successfully",
+      workout: deletedWorkout,
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

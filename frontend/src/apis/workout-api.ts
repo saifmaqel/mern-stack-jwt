@@ -8,36 +8,51 @@ import type {
 
 const resourceWorkouts = "workouts";
 
-async function list(): Promise<GetAllWorkoutsResponse> {
+async function list(token: string): Promise<GetAllWorkoutsResponse> {
   const url = `/${resourceWorkouts}`;
-  const fetched = await axios.get(url);
+  const fetched = await axios.get(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   return fetched.data;
 }
-async function get(id: string): Promise<GetWorkoutResponse> {
+async function get(id: string, token: string): Promise<GetWorkoutResponse> {
   const url = `/${resourceWorkouts}/${id}`;
-  const fetched = await axios.get(url);
+  const fetched = await axios.get(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   return fetched.data;
 }
 async function create(
-  workout: AddEditWorkout
+  workout: AddEditWorkout,
+  token: string
 ): Promise<CreateEditWorkoutResponse> {
   const url = `/${resourceWorkouts}/create`;
   const body = workout;
-  const fetched = await axios.post(url, body);
+  const fetched = await axios.post(url, body, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   return fetched.data;
 }
 async function update(
   id: string,
-  workout: AddEditWorkout
+  workout: AddEditWorkout,
+  token: string
 ): Promise<CreateEditWorkoutResponse> {
   const url = `/${resourceWorkouts}/${id}`;
   const body = workout;
-  const fetched = await axios.put(url, body);
+  const fetched = await axios.put(url, body, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   return fetched.data;
 }
-async function remove(id: string): Promise<CreateEditWorkoutResponse> {
+async function remove(
+  id: string,
+  token: string
+): Promise<CreateEditWorkoutResponse> {
   const url = `/${resourceWorkouts}/${id}`;
-  const fetched = await axios.delete(url);
+  const fetched = await axios.delete(url, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
   return fetched.data;
 }
 

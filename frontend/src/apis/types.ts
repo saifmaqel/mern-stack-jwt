@@ -27,8 +27,17 @@ export interface DeleteWorkoutResponse extends ResponseObject {
   workout: Workout;
 }
 
+export interface loginSigninUserResponse extends ResponseObject {
+  email: string;
+  token: string;
+}
 export interface AddEditWorkout {
   name: string | null;
   load: number;
   reps: number;
+}
+
+export interface LoginSigninUser {
+  email: string;
+  password: string;
 }
