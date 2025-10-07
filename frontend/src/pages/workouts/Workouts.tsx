@@ -21,6 +21,14 @@ function Workouts() {
 
   if (isLoading) return <div>Loading ...</div>;
 
+  if (!data || !data.workouts || data.workouts.length === 0) {
+    return (
+      <p className=" text-center text-gray-500 mt-4">
+        No workouts found for you. Please add a workout 💪
+      </p>
+    );
+  }
+
   return (
     <div className="workouts-list">
       {data &&

@@ -4,16 +4,17 @@ import workoutsRoutes from "./routes/workoutsRoute.js";
 import userRoutes from "./routes/userRouter.js";
 import { connectDB } from "./config/db.js";
 import cors from "cors";
-import rateLimiter from "./middleware/rateLimiter.js";
+// import rateLimiter from "./middleware/rateLimiter.js";
 
 dotenv.config();
 
 const app = express();
 
 // midlleware
-app.use(express.json());
-app.use(rateLimiter);
 app.use(cors());
+app.use(express.json());
+// Free databases are deleted by automation after 14 days of inactivity.
+// app.use(rateLimiter);
 
 // routes
 app.use("/api/workouts", workoutsRoutes);

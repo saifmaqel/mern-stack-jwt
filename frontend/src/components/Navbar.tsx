@@ -13,14 +13,16 @@ function Navbar() {
           <h2>Workouts</h2>
         </Link>
         <div className="links">
-          {state.user && (
-            <>
-              <span>{state.user?.email}</span>
-              <button onClick={logout}>Log out</button>
-            </>
-          )}
           <Link to="/workouts"> Workouts</Link>
           <Link to="/workouts/add"> Add Workout</Link>
+          {state.user && (
+            <div>
+              <span>{state.user?.email}</span>
+              <button onClick={logout} style={{ marginLeft: "20px" }}>
+                Log out
+              </button>
+            </div>
+          )}
           {!state.user && (
             <>
               <Link to="/login"> Log in</Link>
