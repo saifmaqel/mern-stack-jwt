@@ -14,9 +14,9 @@ const baseUrl = "https://workouts-api-t67z.onrender.com";
 axios.defaults.baseURL = baseUrl;
 axios.defaults.headers.common["Content-Type"] = "application/json";
 axios.defaults.headers.common["Accept"] = "application/json";
-axios.defaults.validateStatus = function (status) {
-  return status >= 200 && status < 500;
-};
+// axios.defaults.validateStatus = function (status) {
+//   return status >= 200 && status < 500;
+// };
 
 axios.interceptors.response.use(
   function (response) {
