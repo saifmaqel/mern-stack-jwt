@@ -9,7 +9,7 @@ import { disableReactDevTools } from "@fvilers/disable-react-devtools";
 if (process.env.NODE_ENV === "production") {
   disableReactDevTools();
 }
-
+asd;
 const baseUrl = "https://workouts-api-t67z.onrender.com/api/";
 axios.defaults.baseURL = baseUrl;
 axios.defaults.headers.common["Content-Type"] = "application/json";
