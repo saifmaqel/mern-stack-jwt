@@ -4,8 +4,13 @@ import "./index.css";
 import App from "./App.tsx";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import axios from "axios";
+import { disableReactDevTools } from "@fvilers/disable-react-devtools";
 
-const baseUrl = "http://localhost:4000/api/";
+if (process.env.NODE_ENV === "production") {
+  disableReactDevTools();
+}
+
+const baseUrl = "https://workouts-api-t67z.onrender.com";
 axios.defaults.baseURL = baseUrl;
 axios.defaults.headers.common["Content-Type"] = "application/json";
 axios.defaults.headers.common["Accept"] = "application/json";
