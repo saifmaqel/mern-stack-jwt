@@ -4,6 +4,9 @@ import workoutsRoutes from "./routes/workoutsRoute.js";
 import userRoutes from "./routes/userRouter.js";
 import { connectDB } from "./config/db.js";
 import cors from "cors";
+import path from "path";
+import root from "./routes/root.js";
+
 // import rateLimiter from "./middleware/rateLimiter.js";
 
 dotenv.config();
