@@ -11,6 +11,8 @@ dotenv.config();
 const app = express();
 
 // midlleware
+app.use("/", express.static(path.join(process.cwd(), "public")));
+app.use("/", root);
 app.use(cors());
 app.use(express.json());
 // Free databases are deleted by automation after 14 days of inactivity.
