@@ -14,15 +14,13 @@ function Navbar() {
         </Link>
         <div className="links">
           <Link to="/workouts" className="nav-link">
-            {" "}
             Workouts
           </Link>
           <Link to="/workouts/add" className="nav-link">
-            {" "}
             Add Workout
           </Link>
           {state.user && (
-            <div>
+            <div style={{ marginTop: "10px" }}>
               <span>{state.user?.email}</span>
               <button onClick={logout} style={{ marginLeft: "20px" }}>
                 Log out
