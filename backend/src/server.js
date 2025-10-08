@@ -6,7 +6,7 @@ import { connectDB } from "./config/db.js";
 import cors from "cors";
 import path from "path";
 import root from "./routes/root.js";
-
+import pingRoute from "./routes/ping.js";
 // import rateLimiter from "./middleware/rateLimiter.js";
 
 dotenv.config();
@@ -22,6 +22,7 @@ app.use(express.json());
 // app.use(rateLimiter);
 
 // routes
+app.use("/api/ping", pingRoute);
 app.use("/api/workouts", workoutsRoutes);
 app.use("/api/user", userRoutes);
 
