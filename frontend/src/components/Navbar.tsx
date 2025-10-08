@@ -13,8 +13,14 @@ function Navbar() {
           <h2>Workouts</h2>
         </Link>
         <div className="links">
-          <Link to="/workouts"> Workouts</Link>
-          <Link to="/workouts/add"> Add Workout</Link>
+          <Link to="/workouts" className="nav-link">
+            {" "}
+            Workouts
+          </Link>
+          <Link to="/workouts/add" className="nav-link">
+            {" "}
+            Add Workout
+          </Link>
           {state.user && (
             <div>
               <span>{state.user?.email}</span>
