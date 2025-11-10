@@ -29,5 +29,10 @@ app.use("/api/user", userRoutes);
 connectDB().then(() => {
   app.listen(process.env.PORT, () => {
     console.log("Server is running in port ", process.env.PORT);
+    setInterval(() => {
+      fetch(`https://workouts-api-t67z.onrender.com/api/ping`)
+        .then((res) => console.log("Pinged self to stay awake:", res.status))
+        .catch((err) => console.error("Ping failed:", err));
+    }, 14 * 60 * 1000);
   });
 });
